@@ -132,7 +132,8 @@ class MemoryManager:
         return self
 
     def compress_all(self, max_chars: int = 500, fold_n: int = 10,
-                      output_dir: str = ".", llm_client=None, model: str | None = None):
+                      output_dir: str = ".", llm_client=None,
+                      model: str | None = None, skip_fold: bool = False):
         metrics = {"original_size": 0, "levels": []}
 
         def record(level_name):
@@ -151,8 +152,9 @@ class MemoryManager:
         record("level1_truncate")
         self.level2_dedup()
         record("level2_dedup")
-        self.fold_early(n=fold_n, output_dir=output_dir)
-        record("level3_fold")
+        if not skip_fold:
+            self.fold_early(n=fold_n, output_dir=output_dir)
+            record("level3_fold")
         if llm_client is not None:
             self.level4_summarize(llm_client=llm_client, model=model)
             record("level4_summarize")

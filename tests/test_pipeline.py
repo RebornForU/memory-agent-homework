@@ -138,3 +138,47 @@ class TestAgent:
         assert agent.total_usage["completion_tokens"] == 10
         assert agent.total_usage["total_tokens"] == 30
         assert agent.total_usage["calls"] == 2
+
+    def test_agent_compress_history_reduces_history_size(self, mocker):
+        mock_response = mocker.Mock()
+        mock_response.choices = [
+            mocker.Mock(message=mocker.Mock(content="Mock summary."))
+        ]
+        mock_client = mocker.Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+
+        history = list(HISTORY_FIXTURE)
+        agent = Agent(model="test", api_key="fake", base_url="https://fake.com")
+        agent.client = mock_client
+        agent.set_history(history)
+
+        before = len(json.dumps(agent.get_history(), ensure_ascii=False))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = agent.compress_history(output_dir=tmpdir)
+        after = len(json.dumps(agent.get_history(), ensure_ascii=False))
+
+        assert after < before
+        assert "metrics" in result
+
+    def test_agent_compress_history_skip_fold(self, mocker):
+        mock_response = mocker.Mock()
+        mock_response.choices = [
+            mocker.Mock(message=mocker.Mock(content="Mock summary."))
+        ]
+        mock_client = mocker.Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+
+        history = list(HISTORY_FIXTURE)
+        agent = Agent(model="test", api_key="fake", base_url="https://fake.com")
+        agent.client = mock_client
+        agent.set_history(history)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent.compress_history(skip_fold=True, output_dir=tmpdir)
+
+        folded_markers = [
+            m for m in agent.get_history()
+            if isinstance(m.get("content"), str)
+            and "EARLY_CONTEXT_FOLDED" in m["content"]
+        ]
+        assert len(folded_markers) == 0

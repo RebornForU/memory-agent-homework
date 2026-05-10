@@ -71,3 +71,18 @@ class Agent:
         )
         self._record_usage(response)
         return response.choices[0].message.content
+
+    def compress_history(self, max_chars: int = 500, fold_n: int = 10,
+                          output_dir: str = ".", skip_fold: bool = False):
+        from src.memory_manager import MemoryManager
+        mm = MemoryManager(self.history)
+        metrics = mm.compress_all(
+            max_chars=max_chars,
+            fold_n=fold_n,
+            output_dir=output_dir,
+            llm_client=self.client,
+            model=self.model,
+            skip_fold=skip_fold,
+        )
+        self.set_history(mm.active_history)
+        return {"metrics": metrics, "memory_manager": mm}
